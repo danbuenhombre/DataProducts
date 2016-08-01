@@ -1,0 +1,9 @@
+{
+    "path" : "~/dataScience/dataProducts/eia_recs/data",
+    "sortOrder" : [
+        {
+            "ascending" : true,
+            "columnIndex" : 2
+        }
+    ]
+}
