@@ -2,11 +2,11 @@ fetch_eia_recs <- function() {
     library(openxlsx)
     
     url_2009_data <- "https://www.eia.gov/consumption/residential/data/2009/csv/recs2009_public.csv"
-    file_2009_data <- "./data/recs2009_public.csv"
+    file_2009_data <- "./eia_recs/data/recs2009_public.csv.gz"
     #download.file(url_2009_data, file_2009_data)
     data_2009 <- read.csv(file_2009_data)
     url_2009_codebook <- "https://www.eia.gov/consumption/residential/data/2009/xls/recs2009_public_codebook.xlsx"
-    file_2009_codebook <- "./data/recs2009_public_codebook.xlsx"
+    file_2009_codebook <- "./eia_recs/data/recs2009_public_codebook.xlsx"
     #download.file(url_2009_codebook, file_2009_codebook)
     codebook_2009 <- read.xlsx(file_2009_codebook)
     

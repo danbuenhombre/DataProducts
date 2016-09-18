@@ -1,10 +1,26 @@
-CreateRECSDataset <- function() {
+CreateRECSDataset <- function(work.dir) {
   library(openxlsx)
   
-  setwd("/esource/data_products")
+#  setwd(work.dir)
+  
+  # URLs for EIA RECS public microdata
+  data.url <- "http://www.eia.gov/consumption/residential/data/2009/csv/recs2009_public.csv"
+  data.file <- paste0(work.dir, "/data/recs2009_public.csv")
+  codebook.url <- "http://www.eia.gov/consumption/residential/data/2009/xls/recs2009_public_codebook.xlsx"
+  codebook.file <- paste0(work.dir, "/data/recs2009_public_codebook.xlsx")
+  
+  # if the data file doesn't exist, download it
+  if (!file.exists(data.file)) {
+      download.file(data.url, data.file)
+  }
+  
+  #if the codebook file doesn't exist, download it
+  if (!file.exists(codebook.file)) {
+      download.file(codebook.url, codebook.file)
+  }
   
   # Read raw code book
-  cb <- read.xlsx("./recs2009_public_codebook.xlsx")
+  cb <- read.xlsx(codebook.file)
   # The first two rows are headers and we don't care about 
   # the columns after D
   cb <- cb[3:nrow(cb), 1:4]
@@ -49,7 +65,7 @@ CreateRECSDataset <- function() {
   cb.lookups$response_label <- gsub("^\\s*|\\s*$", "", cb.lookups$response_label)
 
   # read in the raw RECS data  
-  recs <- read.csv("./recs2009_public.csv.gz")
+  recs <- read.csv(data.file)
 
   # loop through each variable in the lookup df
   # and convert the variable in the data to a factor
@@ -59,10 +75,12 @@ CreateRECSDataset <- function() {
     recs[,v] <- factor(recs[,v], levels=vlevels, labels=vlabels)
   }  
   
-  base <- c("DOEID","NWEIGHT")
+  base <- c("DOEID","NWEIGHT","TOTSQFT")
+  
   geography <- c("REGIONC","DIVISION","UR")
-  house <- c("TYPEHUQ","KOWNRENT","YEARMADERANGE","WALLTYPE","ROOFTYPE","BEDROOMS","TOTSQFT")
-  person <- c("EMPLOYHH","SDESCENT","Householder_Race","EDUCATION","NHSLDMEM","MONEYPY")
+  #house <- c("TYPEHUQ","KOWNRENT","YEARMADERANGE","WALLTYPE","ROOFTYPE","BEDROOMS","TOTSQFT")
+  #person <- c("EMPLOYHH","SDESCENT","Householder_Race","EDUCATION","NHSLDMEM","MONEYPY")
+  demographic <- c("TYPEHUQ","KOWNRENT","YEARMADERANGE","EMPLOYHH","EDUCATION","MONEYPY")
   pool <- c("SWIMPOOL","POOL","FUELPOOL")
   heat <- c("HEATHOME","EQUIPM","FUELHEAT","PROTHERM")
   cool <- c("SWAMPCOL","COOLTYPE","PROTHERMAC")
@@ -70,7 +88,7 @@ CreateRECSDataset <- function() {
   elecdol <- c("DOLLAREL","DOLELSPH","DOLELCOL","DOLELWTH","DOLELRFG","DOLELOTH")
   nghcf <- c("CUFEETNG","CUFEETNGSPH","CUFEETNGWTH","CUFEETNGOTH")
   ngdol <- c("DOLLARNG","DOLNGSPH","DOLNGWTH","DOLNGOTH")
-  vars <- list(base=base,geography=geography,house=house,person=person,pool=pool,heat=heat,cool=cool,
+  vars <- list(base=base,geography=geography,demographic=demographic,pool=pool,heat=heat,cool=cool,
                eleckwh=eleckwh,elecdol=elecdol,nghcf=nghcf,ngdol=ngdol)
   
   # filter data frame down to just the variables for the product
@@ -80,10 +98,12 @@ CreateRECSDataset <- function() {
   
   # return a list of three dataframes:
   # 1) Full RECS data
-  # 2) codebook with just variable names and descriptions
-  # 3) lookup table
+  # 2) variable category list (vars)
+  # 3) codebook with just variable names and descriptions
+  # 4) lookup table
   
   ret.list <- list(recs.data=recs, 
+                   recs.varCategory=vars,
                    recs.codebook=cb[,c("variable_name","variable_description")],
                    recs.lookup=cb.lookups)
   ret.list
