@@ -77,7 +77,7 @@ CreateRECSDataset <- function(work.dir) {
   
   base <- c("DOEID","NWEIGHT","TOTSQFT")
   
-  geography <- c("REGIONC","DIVISION","UR")
+  geography <- c("REGIONC","DIVISION","Climate_Region_Pub","UR")
   #house <- c("TYPEHUQ","KOWNRENT","YEARMADERANGE","WALLTYPE","ROOFTYPE","BEDROOMS","TOTSQFT")
   #person <- c("EMPLOYHH","SDESCENT","Householder_Race","EDUCATION","NHSLDMEM","MONEYPY")
   demographic <- c("TYPEHUQ","KOWNRENT","YEARMADERANGE","EMPLOYHH","EDUCATION","MONEYPY")

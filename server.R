@@ -60,6 +60,7 @@ shinyServer(function(input, output, session) {
             # Remove parentheticals from variable descriptions for labels
             xAxisLabel <- recs.list$recs.codebook[recs.list$recs.codebook$variable_name==xAxis,]$variable_description
             xAxisLabel <- unlist(strsplit(xAxisLabel,"\\("))[1]
+            xAxisLabel <- paste("Average:", xAxisLabel)
             yAxisLabel <- recs.list$recs.codebook[recs.list$recs.codebook$variable_name==input$demographic,]$variable_description
             yAxisLabel <- unlist(strsplit(yAxisLabel,"\\("))[1]
             

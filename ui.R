@@ -21,8 +21,8 @@ shinyUI(
                    )
                   ),
             column(9,
-                   plotOutput("recsPlot") 
-                  )
+                   plotOutput("recsPlot")
+            )
         )
     )
 )
