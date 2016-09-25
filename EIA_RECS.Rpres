@@ -1,0 +1,177 @@
+EIA RECS Data Browser
+========================================================
+author: Dan Goodman
+date: September 24, 2016
+width: 1440
+
+Introduction
+========================================================
+<font size="6">
+Every five or six years, the United States Energy Information Administration (EID) publishes the results of a very detailed survey of residential energy consumption (RECS).<br><br>
+This data product is a tool to be used to browse only a very small subset of this data.  The tool allows the user to filter the data set by different geographic regions as well as by some demographic variables such as house type, income level, etc.  The tool has two different chart types: bar chart and scatterplot.  Future enhancements could be allowing for chart facets by demographics and to break down the energy usage by end use category.<br><br>
+Because I have not yet completed all of the Coursera Data Science statistical courses and the fact that I have no background in statistics, the calculations in this tool are rather simple.  The bar chart will show a weighted mean by demographic and the scatterplot will show any possible relationship energy usage/cost and size of house.  The scatterplot will represent a linear model line using ggplot2's stat_smooth(model=lm) function.<br><br>
+This dataset took a fair amount of data wrangling to make a reproducible product.  I give a high level overview on the last slide.  I hope to use this dataset for my Capstone project.
+</font>
+
+Filters
+========================================================
+The tool has two filter sets: Geography and Demographics.  
+
+<img style="float: left;" src="geographyFilter.png">
+<font size="3">
+Geography categories consist of US Census regions, US Census divisions, Climate Region and Urban/Rural classification.   
+<br></font>
+<font size="3">
+When a Geography Category is chosen, the Geography Filter select list is populated with all choices for that category.  An "All" option is included and is the default choice.   
+</font>
+<br><font size="3">
+If a filter other than "All" is selected, the data in the plot is just for the chosen geographic filter.   
+</font>
+<br>
+<img style="float: left;" src="demographicFilter.png">
+<br>
+<font size="3">
+Demographic filters consis of House type, Ownership/Rent status, Year range the house was built, Employment status, Education level and income level.   
+The demographic filters work the same way as the geographic categories and filters.   
+</font>
+
+Chart Types
+========================================================
+<img style="float: left;" src="graphChoices.png">
+<br>
+<font size="3">
+Bar plot will show weighted mean of energy useage or cost for each demographic.  
+Scatter plot will show energy usage or cost and house size (square footage) along with a regression line.  
+</font>
+<br>
+<font size="3">
+Electricity energy usage is displayed in kilowatt hours (kWh) and natural gas energy usage is displayed in hundreds of cubic feet (ccf).   
+</font>
+<br>
+<font size="3">
+Display energy usage in amount of electricity or natural gas or cost in USD of electricity or natural gas.  
+</font>
+
+Example Scatter Plot
+========================================================
+```{r, echo=FALSE, message=FALSE, fig.width=8, out.width="960px", fig.height=4.5, out.height="540px"}
+    library(openxlsx)
+    library(dplyr)
+    library(ggplot2)
+    library(xtable)
+    codebook.file <- "recs2009_public_codebook.xlsx"
+    data.file <- "recs2009_public.csv.gz"
+    
+    # Read raw code book
+    cb <- read.xlsx(codebook.file)
+    # The first two rows are headers and we don't care about 
+    # the columns after D
+    cb <- cb[3:nrow(cb), 1:4]
+    # name the variables
+    names(cb) <- c("variable_name","variable_description","response_code","response_label")
+    
+    # Since many variables in the dataset are codes with labels 
+    # (e.g. REGIONC is 1="Northeast", 2="Midwest", etc.)
+    # a lookup table is need so these variables can be translated to factors
+    
+    # filter DOEID and NAs in response_code
+    cb.lookups.raw <- cb[!is.na(cb$response_code) & cb$variable_name!="DOEID",]
+    # response labels starting with "Number of" or "Total number of" just have
+    # numeric values
+    cb.lookups.raw <- cb.lookups.raw[!grepl("^(total )?number of", cb.lookups.raw$response_label, ignore.case = T),]
+    # response codes with " - " exactly are integers values.  these response codes show the range
+    cb.lookups.raw <- cb.lookups.raw[!grepl(" - ", cb.lookups.raw$response_code),]
+    
+    # loop through each variable and split out codes and labels based on EOL character(s)  
+    cb.lookups <- data.frame()
+    for (i in 1:nrow(cb.lookups.raw)) {
+    response.codes <- unlist(strsplit(cb.lookups.raw[i,]$response_code, "\\r?\\n"))
+    response.labels <- unlist(strsplit(cb.lookups.raw[i,]$response_label, "\\r?\\n"))
+    
+    # remove any blanks
+    response.codes <- response.codes[nchar(response.codes)>0]
+    response.labels <- response.labels[nchar(response.labels)>0]
+    
+    # create a temporary data frame with this variable's results
+    new.var <- data.frame(variable_name=cb.lookups.raw[i,]$variable_name,
+                          response_code=response.codes, 
+                          response_label=response.labels, 
+                          stringsAsFactors = F)
+    
+    # append to final df
+    cb.lookups <- rbind(cb.lookups, new.var)
+    }
+    
+    # trim any leading or trailing spaces
+    cb.lookups$variable_name <- gsub("^\\s*|\\s*$", "", cb.lookups$variable_name)
+    cb.lookups$response_code <- gsub("^\\s*|\\s*$", "", cb.lookups$response_code)
+    cb.lookups$response_label <- gsub("^\\s*|\\s*$", "", cb.lookups$response_label)
+    
+    # read in the raw RECS data  
+    recs <- read.csv(data.file)
+    
+    # loop through each variable in the lookup df
+    # and convert the variable in the data to a factor
+    for (v in unique(cb.lookups$variable_name)) {
+    vlevels <- cb.lookups[cb.lookups$variable_name==v,]$response_code
+    vlabels <- cb.lookups[cb.lookups$variable_name==v,]$response_label
+    recs[,v] <- factor(recs[,v], levels=vlevels, labels=vlabels)
+    }  
+    
+    base <- c("DOEID","NWEIGHT","TOTSQFT")
+    
+    geography <- c("REGIONC","DIVISION","Climate_Region_Pub","UR")
+    demographic <- c("TYPEHUQ","KOWNRENT","YEARMADERANGE","EMPLOYHH","EDUCATION","MONEYPY")
+    pool <- c("SWIMPOOL","POOL","FUELPOOL")
+    heat <- c("HEATHOME","EQUIPM","FUELHEAT","PROTHERM")
+    cool <- c("SWAMPCOL","COOLTYPE","PROTHERMAC")
+    eleckwh <- c("KWH","KWHSPH","KWHCOL","KWHWTH","KWHRFG","KWHOTH")
+    elecdol <- c("DOLLAREL","DOLELSPH","DOLELCOL","DOLELWTH","DOLELRFG","DOLELOTH")
+    nghcf <- c("CUFEETNG","CUFEETNGSPH","CUFEETNGWTH","CUFEETNGOTH")
+    ngdol <- c("DOLLARNG","DOLNGSPH","DOLNGWTH","DOLNGOTH")
+    vars <- list(base=base,geography=geography,demographic=demographic,pool=pool,heat=heat,cool=cool,
+               eleckwh=eleckwh,elecdol=elecdol,nghcf=nghcf,ngdol=ngdol)
+    
+    xAxis <- "KWH"
+    yAxis <- "TOTSQFT"
+    varList <- c(xAxis,yAxis,"NWEIGHT")
+    
+    plotDF <- recs[,varList]
+    names(plotDF) <- c("xAxis","yAxis","NWEIGHT")
+    plotDF$xAxis <- plotDF$xAxis*plotDF$NWEIGHT
+    plotDF$NWEIGHT <- NULL
+
+    maxX <- max(plotDF$xAxis)
+    
+    # Remove parentheticals from variable descriptions for labels
+    xAxisLabel <- cb[cb$variable_name==xAxis,]$variable_description
+    xAxisLabel <- unlist(strsplit(xAxisLabel,"\\("))[1]
+    yAxisLabel <- cb[cb$variable_name==yAxis,]$variable_description
+    yAxisLabel <- unlist(strsplit(yAxisLabel,"\\("))[1]
+    
+    # plot
+    p <- ggplot(plotDF, aes(x=xAxis, y=yAxis))
+    p <- p + geom_point()
+    p <- p + scale_x_continuous(limits = c(0,maxX), 
+                            breaks = seq(0, maxX, round(maxX/10,0)), 
+                            labels=scales::comma)
+    p <- p + stat_smooth(method=lm)
+    p <- p + xlab(xAxisLabel) + ylab(yAxisLabel)
+    p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    p
+
+```
+
+Data Processing
+========================================================
+<font size="3">
+This dataset took a bit of processing work to get it easy to plot and dynamically choose certain variables.<br>
+Many of the variables, such as the geography and demographic variables used in this product, are reported as integers in the data file and the look ups for those values are provided in the codebok.<br>
+The code in parse_2009.R will download the RECS data file and the codebook from the EIA's website if these files do not already exist in the eia_recs/data directory.  The dataset consists of `r ncol(recs)` variables with `r nrow(recs)` observations.<br>
+The codebook is parsed in order to get variable names and descriptions.  A lookup data frame is also created for response values and labels so that these variables could be converted to factors.
+</font>
+``` {r echo=FALSE, results="asis"}
+    x <- head(cb.lookups,5)
+    x1 <- xtable(x)
+    print(x1, type="html")
+```
